@@ -152,7 +152,9 @@ async function initializeClient(userId) {
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   };
 
-  if (fs.existsSync(chromePath)) {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    puppeteerConfig.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  } else if (fs.existsSync(chromePath)) {
     puppeteerConfig.executablePath = chromePath;
   }
 
