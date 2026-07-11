@@ -26,6 +26,7 @@ async function cleanupClient(userId) {
   
   if (clients.has(userId)) {
     const client = clients.get(userId);
+    client.isReady = false;
     try {
       await client.logout().catch(() => {});
       await client.destroy().catch(() => {});
@@ -107,6 +108,11 @@ async function start() {
         }
         
         const client = clients.get(conversation.user_id);
+        if (!client.isReady) {
+            console.log(`[Outbound] WhatsApp client for user ${conversation.user_id} is not fully connected/ready yet. Skipping message sending.`);
+            await supabase.from('messages').update({ status: 'failed' }).eq('id', msg.id);
+            return;
+        }
         let toPhone = conversation.contact.phone;
         if (!toPhone.includes('@')) {
             toPhone = toPhone.replace(/[^0-9]/g, '') + '@c.us';
@@ -163,6 +169,7 @@ async function initializeClient(userId) {
     puppeteer: puppeteerConfig
   });
 
+  client.isReady = false;
   clients.set(userId, client);
 
   let isClientReady = false;
@@ -187,6 +194,7 @@ async function initializeClient(userId) {
 
   client.on('ready', async () => {
     isClientReady = true;
+    client.isReady = true;
     console.log(`Client is ready for user: ${userId}`);
     await supabase
       .from('whatsapp_config')
@@ -213,6 +221,7 @@ async function initializeClient(userId) {
 
   client.on('disconnected', async (reason) => {
     isClientReady = false;
+    client.isReady = false;
     console.log(`Client disconnected for user: ${userId}`, reason);
     await supabase
       .from('whatsapp_config')
